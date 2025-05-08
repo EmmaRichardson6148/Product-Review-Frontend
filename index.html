@@ -1,101 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Clothing Review System</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h1 { color: #333; }
-    label { display: block; margin-top: 10px; }
-    select, input, textarea, button { width: 100%; margin-top: 5px; padding: 8px; }
-    .product { margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Clothing Reviews</title>
 </head>
 <body>
-  <h1>Leave a Review</h1>
+  <h1>Submit a Product Review</h1>
 
-  <form id="reviewForm">
-    <label for="product">Select Product:</label>
-    <select id="productSelect" required></select>
+  <form id="review-form">
+    <label for="product">Product:</label>
+    <select id="product" name="product_id"></select><br><br>
 
-    <label for="userId">Your User ID:</label>
-    <input type="number" id="userId" required />
+    <label for="user_name">Your Name:</label>
+    <input type="text" id="user_name" name="user_name" required><br><br>
 
     <label for="rating">Rating (1-5):</label>
-    <input type="number" id="rating" min="1" max="5" required />
+    <input type="number" id="rating" name="rating" min="1" max="5" required><br><br>
 
-    <label for="reviewText">Your Review:</label>
-    <textarea id="reviewText" rows="4" required></textarea>
+    <label for="review_text">Review:</label>
+    <textarea id="review_text" name="review_text" required></textarea><br><br>
 
-    <label for="categories">Category IDs (comma-separated):</label>
-    <input type="text" id="categoryIds" placeholder="e.g. 1,2" />
+    <label for="category">Category:</label>
+    <select id="category" name="category_ids"></select><br><br>
 
     <button type="submit">Submit Review</button>
   </form>
 
-  <div id="status" style="margin-top: 20px;"></div>
+  <p id="result"></p>
 
   <script>
-    const BACKEND_URL = "http://127.0.0.1:8000"; // ← Change this if you deploy your backend online
+    const baseUrl = 'http://127.0.0.1:8000';
 
-    // Load products on page load
-    async function loadProducts() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/products/`);
-        const products = await res.json();
-        const select = document.getElementById("productSelect");
-        products.forEach(p => {
-          const opt = document.createElement("option");
-          opt.value = p.id;
-          opt.textContent = p.product_name;
-          select.appendChild(opt);
-        });
-      } catch (err) {
-        console.error("Failed to load products:", err);
-      }
+    async function fetchAndFillDropdown(endpoint, elementId, labelKey = "name") {
+      const response = await fetch(`${baseUrl}/${endpoint}`);
+      const data = await response.json();
+      const select = document.getElementById(elementId);
+      data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.product_name || item.name || item.category_name;
+        select.appendChild(option);
+      });
     }
 
-    document.getElementById("reviewForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const productId = parseInt(document.getElementById("productSelect").value);
-      const userId = parseInt(document.getElementById("userId").value);
-      const rating = parseInt(document.getElementById("rating").value);
-      const reviewText = document.getElementById("reviewText").value;
-      const categoryIds = document.getElementById("categoryIds").value
-        .split(",")
-        .map(id => parseInt(id.trim()))
-        .filter(id => !isNaN(id));
-
-      const payload = {
-        product_id: productId,
-        user_id: userId,
-        rating,
-        review_text: reviewText,
-        category_ids: categoryIds
-      };
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/reviews/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Server error: ${res.status} – ${text}`);
-        }
-
-        document.getElementById("status").textContent = "Review submitted successfully.";
-        e.target.reset();
-      } catch (err) {
-        console.error(err);
-        document.getElementById("status").textContent = `Failed to submit review: ${err.message}`;
-      }
+    document.addEventListener("DOMContentLoaded", async () => {
+      await fetchAndFillDropdown("products", "product");
+      await fetchAndFillDropdown("categories", "category");
     });
 
-    loadProducts();
+    document.getElementById("review-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const form = e.target;
+      const data = {
+        product_id: parseInt(form.product.value),
+        user_name: form.user_name.value,
+        rating: parseInt(form.rating.value),
+        review_text: form.review_text.value,
+        category_ids: [parseInt(form.category.value)]
+      };
+      const response = await fetch(`${baseUrl}/reviews/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = document.getElementById("result");
+      if (response.ok) {
+        result.textContent = "Review submitted successfully";
+        form.reset();
+      } else {
+        const err = await response.text();
+        result.textContent = `Error: ${err}`;
+      }
+    });
   </script>
 </body>
 </html>
+
